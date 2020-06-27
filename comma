@@ -1,0 +1,80 @@
+#!/usr/bin/bash
+
+# commaフロントエンド
+# 引数を処理して、comma.implコマンドを実行する
+# usage: comma [+<n>h][-4] <f1> <f2> ... <file>
+#      : comma -d[4] <string>
+# 20140726 yegawa (yegawa@ega-wave.co.jp)
+
+# $*の最後の引数を出力する
+function last_arg ()
+{
+	eval echo '$'{$#}
+}
+
+# -dの処理
+if [[ "$1" == "-d" ]]; then
+	shift;
+	echo $* | comma.impl
+	exit 0
+# -d4の処理
+elif [[ "$1" == "-d4" ]]; then
+	shift;
+	echo $* | comma.impl -4
+	exit 0
+fi
+
+# +<n>hの処理
+N=0;
+if [[ $(echo "$1" | grep '^+[1-9]*[0-9]*h$') ]]; then
+	N=$(echo "$1" | sed 's#+h#+1h#' | sed 's#+\([1-9][0-9]*\)h#\1#')
+	shift;
+fi
+
+# <file>(最後の引数)の処理
+# デフォルトは-(標準入力)
+FILE=-
+ARG_ARRAY=($*)
+if ! last_arg ${ARG_ARRAY[@]} | grep "^[1-9][0-9]*$" 2>&1 >/dev/null; then
+	# 最後の引数をFILEにセット
+	FILE=$(last_arg ${ARG_ARRAY[@]})
+
+	# 最後の引数を削除
+	ARG_ARRAY=(${ARG_ARRAY[@]:0:$((${#ARG_ARRAY[@]} -1))})
+fi
+
+# applyコマンドに渡す引数を構築(${ARG})
+if [[ $1 == "-4" ]]; then
+	# 最初の引数("-4")を削除
+	ARG_ARRAY=(${ARG_ARRAY[@]:1:${#ARG_ARRAY[@]}})
+	ARG=$(echo ${ARG_ARRAY[@]} | tr ' ' '\n' | sed 's#$# '\''comma.impl -4'\''#' | tr '\n' ' ')
+else
+	ARG=$(echo ${ARG_ARRAY[@]} | tr ' ' '\n' | sed 's#$# '\''comma.impl'\''#' | tr '\n' ' ')
+fi
+
+# applyコマンドでcomma.implを実行
+if [[ $N != 0 ]]; then
+	# ヘッダを名前付きパイプ1で、
+	# 実データを名前付きパイプ2で扱う
+	NAMED_PIPE1="/tmp/np.comma.$$.1"
+	NAMED_PIPE2="/tmp/np.comma.$$.2"
+	mkfifo ${NAMED_PIPE1} ${NAMED_PIPE2}
+
+	# パイプへの入力待ち
+	cat ${NAMED_PIPE1} ${NAMED_PIPE2} &
+
+	# パイプへ書き込む
+	cat ${FILE} |
+	tee >(head -n $N > ${NAMED_PIPE1})	|
+	tail -n +$(($N+1))	|
+	eval apply ${ARG} > ${NAMED_PIPE2}
+
+	# 後処理
+	rm ${NAMED_PIPE1} ${NAMED_PIPE2}
+
+	wait
+else
+	cat ${FILE} |
+	eval apply ${ARG}
+fi
+

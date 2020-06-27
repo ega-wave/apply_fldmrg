@@ -1,0 +1,45 @@
+オンラインコマンドマニュアル
+
+apply(1),fldmrg(1)
+
+【名前】
+
+apply : 指定したフィールドに指定したコマンドを適用し、
+        適用した結果を標準出力に出力する
+
+【書式】
+
+Usage   : apply <f1> 'command1' <f2> 'command2' ...
+Version : Sun Aug 17 11:03:12 JST 2014
+
+【説明】
+
+標準入力から読み込み、<f1>フィールドにcommand1を、<f2>フィールドにcommand2
+を適用し、command1やcommand2の標準出力をpaste(1)のようにマージして、標準出力に出力する
+
+【注意】
+
+指定するコマンドは、標準入力から読み込んで標準出力に出力するコマンドであること
+fldmrg(1)はapply(1)がexec&forkするので、ユーザが直接実行する必要はない
+apply(1)は引数の奇数番目をフィールドを表す数字、偶数番目をコマンドと単純にみな
+しているので、コマンドに半角スペースが含まれる場合は''（シングルクォート）等で
+囲む
+
+
+【例1】
+第１フィールドを大文字に、第２フィールドを小文字に変換
+
+$ cat data
+a B
+c D
+$
+
+$ cat data | apply 1 'tr a-z A-Z' 2 'tr A-Z a-z'
+A b
+C d
+$
+
+last modified: 2014-09-09 12:14:37
+Contact us: contact@ega-wave.co.jp
+Copyright (c) 2012-2014 Ega-Wave All Rights Reserved.
+
